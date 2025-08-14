@@ -1,0 +1,83 @@
+# ==============================================================================
+#           Working Python Script for VEO 3 on Google Vertex AI
+# ==============================================================================
+#
+# Author: [Your Name or Handle Here]
+# Date: August 14, 2025
+#
+# Description:
+# This script provides a fully working example of how to generate a video using
+# Google's VEO 3 model. It correctly handles authentication, polling, and
+# downloading the final video file.
+#
+# The official documentation snippets were found to be non-functional as of
+# this date, necessitating this working example.
+#
+# ==============================================================================
+
+import time
+import sys
+from datetime import datetime
+from google import genai
+from google.genai import types
+
+# --- 1. CONFIGURATION: EDIT THESE VALUES ---
+# ------------------------------------------------------------------------------
+# Replace these placeholders with your own Google Cloud Project details.
+PROJECT_ID = "your-gcp-project-id"
+LOCATION = "us-central1"  # e.g., "us-central1" - Use a VEO-supported location.
+
+# Describe the video you want to create.
+PROMPT = "A cinematic, wide shot of a futuristic city at sunset, with flying vehicles."
+# ------------------------------------------------------------------------------
+
+
+# --- SAFETY CHECK: Do not run with default values ---
+if "your-gcp-project-id" in PROJECT_ID:
+    print("ERROR: Please edit the script and replace 'your-gcp-project-id' with your actual Google Cloud Project ID.")
+    sys.exit()
+
+
+# --- Generate a unique filename using the current date and time ---
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+OUTPUT_FILENAME = f"veo_video_{timestamp}.mp4"
+
+
+# --- 2. INITIALIZE THE CLIENT ---
+# This correctly initializes the client to use your authenticated
+# Google Cloud (Vertex AI) account and the project details defined above.
+print(f"Initializing Vertex AI client for project '{PROJECT_ID}' in '{LOCATION}'...")
+client = genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
+
+
+# --- 3. SUBMIT THE VIDEO GENERATION REQUEST ---
+print(f"Submitting video generation request...")
+operation = client.models.generate_videos(
+    model="veo-3.0-generate-preview",
+    prompt=PROMPT,
+)
+print(f"Request submitted successfully. Operation Name: {operation.name}")
+
+
+# --- 4. POLL FOR THE RESULT ---
+# This loop will check the status every 10 seconds until the video is ready.
+print("Polling for result. This may take several minutes...")
+while not operation.done:
+    print("...Still generating, please wait...")
+    time.sleep(10)
+    operation = client.operations.get(operation)
+
+print("Operation complete!")
+
+
+# --- 5. SAVE THE FINAL VIDEO ---
+# Accesses the embedded video data from the response and writes it to a file.
+print(f"Saving generated video to '{OUTPUT_FILENAME}'...")
+generated_video = operation.response.generated_videos[0]
+video_data = generated_video.video.video_bytes
+
+# Write the raw bytes to a file. 'wb' means 'write binary'.
+with open(OUTPUT_FILENAME, "wb") as f:
+    f.write(video_data)
+
+print(f"\nSuccess! Your video has been saved to {OUTPUT_FILENAME}")
